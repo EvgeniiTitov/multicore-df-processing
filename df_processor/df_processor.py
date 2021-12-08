@@ -13,11 +13,6 @@ from .results_accumulator import ResultsAccumulator
 from .messages import TaskMessage
 
 
-"""
-Could have more workers spawned than partitions -> bad
-"""
-
-
 class DFProcessor(LoggerMixin):
     _RESULT_QUEUE_SIZE = 50
     _N_WORKERS = os.cpu_count()
@@ -36,7 +31,6 @@ class DFProcessor(LoggerMixin):
         self._worker_queue_size = (
             worker_queue_size or DFProcessor._WORKER_QUEUE_SIZE
         )
-
         self._result_queue: "MPQueue[t.Any]" = MPQueue(
             DFProcessor._RESULT_QUEUE_SIZE
         )
@@ -47,6 +41,7 @@ class DFProcessor(LoggerMixin):
         self._results_accumulator.start()
 
         self._workers: t.List[Worker] = []
+        # TODO: You could start workers after checking the number of splits?
         self._start_workers()
         self.logger.info("DFProcessor initialized")
 

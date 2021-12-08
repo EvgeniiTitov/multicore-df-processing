@@ -1,0 +1,2 @@
+class UserProvidedCallableError(Exception):
+    pass

@@ -25,8 +25,12 @@ class Worker(multiprocessing.Process, LoggerMixin):
         self.logger.info(f"Worker {worker_index} initialized")
 
     def enqueue_task_within_timeout(
-        self, task: TaskMessage, *, timeout: float = 0.0
+        self, task: TaskMessage, *, timeout: float = 0.1
     ) -> bool:
+        """
+        Send a task to the running worker. Note, TaskMessage attributes
+        must be serializable
+        """
         if timeout < 0:
             raise ValueError("Timeout must be >= 0")
         try:
@@ -60,5 +64,7 @@ class Worker(multiprocessing.Process, LoggerMixin):
                 else:
                     self._result_queue.put([result])
             else:
-                self.logger.warning("Unknown message type received. Skipped")
+                self.logger.warning(
+                    f"Unknown message received {message}. Skipped"
+                )
         self.logger.info("Worker stopped")

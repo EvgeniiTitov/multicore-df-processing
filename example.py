@@ -1,6 +1,7 @@
 import typing as t
 import os
 from functools import partial
+import time
 
 import pandas as pd
 
@@ -10,6 +11,7 @@ from df_processor import DFProcessor
 def count_rows(df: t.Union[pd.Series, pd.DataFrame], test_message: str) -> int:
     pid = os.getpid()
     rows = df.shape[0]
+    time.sleep(1)
     print(f"PID: {pid}; Rows: {rows}; Test message: {test_message}")
     return rows
 
@@ -21,9 +23,9 @@ def main() -> int:
     results = df_processor.process_df(
         df=df_iris,
         func=partial(count_rows, test_message="KEK"),
-        n_partitions=5,
+        n_partitions=20,
     )
-    print("Result:", results)
+    print("Result:", sum([e[0] for e in results]))
     return 0
 
 

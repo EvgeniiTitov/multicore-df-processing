@@ -45,6 +45,13 @@ class DFProcessor(LoggerMixin):
         func: t.Callable[[t.Union[pd.Series, pd.DataFrame]], t.Any],
         n_partitions: int,
     ) -> t.Any:
+        """
+        Processes passed dataframe using provided callable.
+        Before processing the provided data frame will get split into N
+        partitions. Each partition processing will get scheduled to one of the
+        workers.
+        Results are collected automatically and returned to the user
+        """
         if not callable(func):
             raise TypeError("func must be callable")
         rows = df.shape[0]

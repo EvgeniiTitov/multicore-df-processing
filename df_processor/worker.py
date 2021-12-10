@@ -31,7 +31,7 @@ class Worker(multiprocessing.Process, LoggerMixin):
             raise ValueError("Timeout must be >= 0")
         try:
             self._task_queue.put(task, timeout=timeout)
-        except TimeoutError:
+        except Exception:
             self.logger.warning(
                 f"Worker {self.index}'s queue is full, didn't enqueue message"
             )
@@ -58,10 +58,6 @@ class Worker(multiprocessing.Process, LoggerMixin):
                     )
                     raise e
                 else:
-                    self.logger.info(
-                        f"Successfully called the provided callable. "
-                        f"Result: {result}"
-                    )
                     self._result_queue.put([result])
             else:
                 self.logger.warning("Unknown message type received. Skipped")

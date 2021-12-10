@@ -13,10 +13,6 @@ Minor:
 
 - Better test with more advanced pandas
 
-- Add progress bar to show how many partitions processed
-
-- Measure df size in the main process VS sliced df that a worker receives - ensure only the subset gets copied
-
 - Comment your code
 
 - Write tests

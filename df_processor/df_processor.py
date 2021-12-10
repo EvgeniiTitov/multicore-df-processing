@@ -1,3 +1,4 @@
+import time
 import typing as t
 from multiprocessing import Queue as MPQueue
 import threading
@@ -22,9 +23,9 @@ class DFProcessor(LoggerMixin):
         worker_queue_size: t.Optional[int] = None,
         n_workers: t.Optional[int] = None,
     ) -> None:
-        if n_workers and n_workers <= 0:
+        if n_workers is not None and n_workers <= 0:
             raise ValueError("n_workers must be >= 1")
-        if worker_queue_size and worker_queue_size <= 0:
+        if worker_queue_size is not None and worker_queue_size <= 0:
             raise ValueError("worker_queue_size must be >= 1")
         self._n_workers = n_workers or DFProcessor._N_WORKERS
         self._worker_queue_size = (
@@ -34,20 +35,9 @@ class DFProcessor(LoggerMixin):
             DFProcessor._RESULT_QUEUE_SIZE
         )
         self._stop_event = threading.Event()
-        self._results_accumulator = ResultsAccumulator(
-            self._result_queue, self._stop_event
-        )
-        self._results_accumulator.start()
-
+        self._results_accumulator: ResultsAccumulator = None  # type: ignore
         self._running_workers: t.List[Worker] = []
         self.logger.info("DFProcessor initialized")
-
-    def _start_workers(self, n_workers: int) -> None:
-        for i in range(n_workers):
-            worker = Worker(i, self._worker_queue_size, self._result_queue)
-            worker.start()
-            self._running_workers.append(worker)
-        self.logger.info(f"{n_workers} workers started")
 
     def process_df(
         self,
@@ -61,13 +51,14 @@ class DFProcessor(LoggerMixin):
         if n_partitions < 1 or n_partitions > rows:
             raise ValueError("n_partitions must be >= 1 and <= df.shape[0]")
 
-        # Start workers
+        # Start workers and results accumulator
         n_workers_required = (
             self._n_workers
             if self._n_workers <= n_partitions  # type: ignore
             else n_partitions
         )
         self._start_workers(n_workers_required)  # type: ignore
+        self._start_results_accumulator(n_partitions)
 
         # Split dataframe into partitions
         partition_indices = [
@@ -80,13 +71,14 @@ class DFProcessor(LoggerMixin):
             f"Rows per partition: {rows_per_partition}; "
             f"Partition indices: {partition_indices}"
         )
+
         # Distribute partitions among workers
         get_worker_round_robin = round_robin_workers(self._running_workers)
         counter = 0
         while partition_indices:
             left, right = partition_indices.pop(0)
             worker_task = TaskMessage(
-                counter, func=func, df=df.iloc[left:right]
+                counter, func=func, df=df.iloc[left : right + 1, :]
             )
             for worker in get_worker_round_robin:
                 enqueued = worker.enqueue_task_within_timeout(worker_task)
@@ -95,17 +87,26 @@ class DFProcessor(LoggerMixin):
                         f"Sent partition {counter} to worker {worker.index}"
                     )
                     break
+                else:
+                    time.sleep(0.25)
             counter += 1
 
         # Stop workers to ensure they're done processing partitions
         self._stop_workers()
 
         # Stop the accumulator to ensure it collected all results from
-        # th workers
+        # the workers
         self._stop_results_accumulator()
-        results = self._results_accumulator.results
+        results = self._results_accumulator.get_results()
         self.logger.info(f"Total of {len(results)} results received")
         return results
+
+    def _start_workers(self, n_workers: int) -> None:
+        for i in range(n_workers):
+            worker = Worker(i, self._worker_queue_size, self._result_queue)
+            worker.start()
+            self._running_workers.append(worker)
+        self.logger.info(f"{n_workers} workers started")
 
     def _stop_workers(self) -> None:
         for worker in self._running_workers:
@@ -114,6 +115,13 @@ class DFProcessor(LoggerMixin):
         for worker in self._running_workers:
             worker.join()
         self.logger.info("Workers joined")
+
+    def _start_results_accumulator(self, n_partitions: int) -> None:
+        self._results_accumulator = ResultsAccumulator(
+            n_partitions, self._result_queue, self._stop_event
+        )
+        self._results_accumulator.start()
+        self.logger.info("ResultsAccumulator started")
 
     def _stop_results_accumulator(self) -> None:
         self._stop_event.set()

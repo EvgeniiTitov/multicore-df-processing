@@ -9,10 +9,6 @@ multiple instances of people doing it in different ways within one code base.
 
 Minor:
 
-- User provided batch size is not met (should a user provide the number of splits?)
-
-- Dont start more workers than required (splits), move their initialization to .process_df()
-
 - Worker.stop_worker() could block if queue is full
 
 - Better test with more advanced pandas

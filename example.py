@@ -21,7 +21,7 @@ def main() -> int:
     results = df_processor.process_df(
         df=df_iris,
         func=partial(count_rows, test_message="KEK"),
-        rows_per_batch=200,
+        n_partitions=5,
     )
     print("Result:", results)
     return 0

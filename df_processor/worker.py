@@ -65,5 +65,4 @@ class Worker(multiprocessing.Process, LoggerMixin):
                     self._result_queue.put([result])
             else:
                 self.logger.warning("Unknown message type received. Skipped")
-
         self.logger.info("Worker stopped")

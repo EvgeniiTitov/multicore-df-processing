@@ -118,7 +118,7 @@ class DFProcessor(LoggerMixin):
     def _stop_workers(self) -> None:
         for worker in self._running_workers:
             worker.stop_worker()
-        self.logger.info("Stop message send to workers, trying to join")
+        self.logger.info("Stop message sent to workers, trying to join")
         for worker in self._running_workers:
             worker.join()
         self.logger.info("Workers joined")

@@ -10,14 +10,14 @@ from .utils import LoggerMixin
 class ResultsAccumulator(threading.Thread, LoggerMixin):
     def __init__(
         self,
-        n_partitions: int,
+        partitions_expected: int,
         results_queue: MPQueue,
         stop_event: threading.Event,
         *args,
         **kwargs
     ) -> None:
         super().__init__(*args, **kwargs)
-        self._n_partitions = n_partitions
+        self._partitions_expected = partitions_expected
         self._stop_event = stop_event
         self._results_queue = results_queue
         self._results: t.List[t.Any] = []
@@ -29,11 +29,11 @@ class ResultsAccumulator(threading.Thread, LoggerMixin):
 
     def run(self) -> None:
         partitions_received = 0
-        pbar = tqdm(total=self._n_partitions)
+        pbar = tqdm(total=self._partitions_expected)
         pbar.set_description("Partitions processed:")
         while True:
             if self._stop_event.is_set():
-                if partitions_received == self._n_partitions:
+                if partitions_received == self._partitions_expected:
                     break
                 elif not self._message_shown:
                     self.logger.warning(
@@ -42,7 +42,7 @@ class ResultsAccumulator(threading.Thread, LoggerMixin):
                     )
                     self._message_shown = True
             try:
-                result: t.Any = self._results_queue.get(timeout=0.5)
+                result: t.Any = self._results_queue.get(timeout=0.5)[0]
             except Exception:
                 pass
             else:

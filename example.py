@@ -18,14 +18,14 @@ def count_rows(df: t.Union[pd.Series, pd.DataFrame], test_message: str) -> int:
 
 def main() -> int:
     print("Main thread process:", os.getpid())
-    df_processor = DFProcessor(worker_queue_size=5, n_workers=2)
+    df_processor = DFProcessor(worker_queue_size=5, n_workers=5)
     df_iris = pd.read_csv("/Users/etitov1/Downloads/sample.csv", sep=",")
     results = df_processor.process_df(
         df=df_iris,
         func=partial(count_rows, test_message="KEK"),
         n_partitions=20,
     )
-    print("Result:", sum([e[0] for e in results]))
+    print("Result:", sum(results))
     return 0
 
 

@@ -1,6 +1,8 @@
 import typing as t
 import logging
 import sys
+import time
+from functools import wraps
 
 
 T = t.TypeVar("T")
@@ -26,3 +28,15 @@ class LoggerMixin:
     def logger(self) -> logging.Logger:
         name = ".".join([__name__, self.__class__.__name__])
         return logging.getLogger(name)
+
+
+def timer(func: t.Callable) -> t.Callable:
+    @wraps(func)
+    def wrapper(*args, **kwargs) -> t.Any:
+        start = time.perf_counter()
+        result = func(*args, **kwargs)
+        stop = time.perf_counter()
+        print(f"Took {stop - start} seconds")
+        return result
+
+    return wrapper

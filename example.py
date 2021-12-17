@@ -7,6 +7,7 @@ import sys
 import pandas as pd
 
 from df_processor import DFProcessor
+from df_processor.utils import timer
 
 
 def count_rows(df: t.Union[pd.Series, pd.DataFrame], test_message: str) -> int:
@@ -20,17 +21,18 @@ def count_rows(df: t.Union[pd.Series, pd.DataFrame], test_message: str) -> int:
     return rows
 
 
+@timer
 def main() -> int:
-    df_processor = DFProcessor(worker_queue_size=5, n_workers=10)
+    df_processor = DFProcessor(worker_queue_size=5, n_workers=6)
 
     df = pd.read_csv("/Users/etitov1/Downloads/sample.csv", sep=",")
-    df = pd.concat([df] * 10_000, ignore_index=True)
+    df = pd.concat([df] * 25_000, ignore_index=True)
     print(f"Main thread process: {os.getpid()}; DF size: {sys.getsizeof(df)}")
 
     results = df_processor.process_df(
         df=df,
         func=partial(count_rows, test_message="KEK"),
-        n_partitions=20,
+        n_partitions=200,
     )
     print("Result:", sum(results))
     return 0

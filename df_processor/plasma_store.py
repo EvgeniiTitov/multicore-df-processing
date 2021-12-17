@@ -7,19 +7,17 @@ from .utils import LoggerMixin
 
 
 class PlasmaStore(LoggerMixin):
-
     def __init__(
         self,
         socket_name: str = "/tmp/plasma",
         size: int = 1000000000,
-        directory: str = "/tmp"
+        directory: str = "/tmp",
     ) -> None:
         self.socket_name = socket_name
         self.size = size
         self.directory = directory
 
         self._running = False
-        self._process = None
 
     @property
     def running(self) -> bool:
@@ -31,12 +29,15 @@ class PlasmaStore(LoggerMixin):
                 self._process: subprocess.Popen = subprocess.Popen(
                     [
                         "plasma_store",
-                        "-m", f"{self.size}",
-                        "-s", f"{self.socket_name}",
-                        "-d", f"{self.directory}"
+                        "-m",
+                        f"{self.size}",
+                        "-s",
+                        f"{self.socket_name}",
+                        "-d",
+                        f"{self.directory}",
                     ],
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE
-
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
                 )
             except Exception as e:
                 self.logger.exception(
@@ -67,13 +68,12 @@ class PlasmaStore(LoggerMixin):
 
 
 class CustomPlasmaClient(LoggerMixin):
-
     def __init__(
-            self,
-            parent: bool,
-            socket_name: str = "/tmp/plasma",
-            size: int = 1000000000,
-            directory: str = "/tmp"
+        self,
+        parent: bool,
+        socket_name: str = "/tmp/plasma",
+        size: int = 1000000000,
+        directory: str = "/tmp",
     ) -> None:
         self._parent = parent
         self._socket_name = socket_name
@@ -90,10 +90,13 @@ class CustomPlasmaClient(LoggerMixin):
                 f"Socket name: {socket_name}. Size: {size}"
             )
         else:
-            self._plasma_store = None
+            self._plasma_store = None  # type: ignore
 
         self._plasma_client: plasma.PlasmaClient = plasma.connect(socket_name)
-        self.logger.info("Connected to the PlasmaStore")
+        self.logger.info(
+            f"{'Main process' if parent else 'Worker'} "
+            f"connected to the PlasmaStore"
+        )
 
     @property
     def plasma_client(self) -> plasma.PlasmaClient:

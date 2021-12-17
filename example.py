@@ -2,6 +2,7 @@ import typing as t
 import os
 from functools import partial
 import time
+import sys
 
 import pandas as pd
 
@@ -11,17 +12,23 @@ from df_processor import DFProcessor
 def count_rows(df: t.Union[pd.Series, pd.DataFrame], test_message: str) -> int:
     pid = os.getpid()
     rows = df.shape[0]
-    time.sleep(1)
-    print(f"PID: {pid}; Rows: {rows}; Test message: {test_message}")
+    time.sleep(5)
+    print(
+        f"PID: {pid}; DF Size: {sys.getsizeof(df)}; "
+        f"Rows: {rows}; Test message: {test_message}"
+    )
     return rows
 
 
 def main() -> int:
-    print("Main thread process:", os.getpid())
-    df_processor = DFProcessor(worker_queue_size=5, n_workers=5)
-    df_iris = pd.read_csv("/Users/etitov1/Downloads/sample.csv", sep=",")
+    df_processor = DFProcessor(worker_queue_size=5, n_workers=10)
+
+    df = pd.read_csv("/Users/etitov1/Downloads/sample.csv", sep=",")
+    df = pd.concat([df] * 10_000, ignore_index=True)
+    print(f"Main thread process: {os.getpid()}; DF size: {sys.getsizeof(df)}")
+
     results = df_processor.process_df(
-        df=df_iris,
+        df=df,
         func=partial(count_rows, test_message="KEK"),
         n_partitions=20,
     )

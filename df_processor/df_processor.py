@@ -8,9 +8,10 @@ import pandas as pd
 import numpy as np
 
 from .worker import Worker
-from .utils import round_robin_workers, LoggerMixin
+from .utils import round_robin_workers, LoggerMixin, get_object_size
 from .results_accumulator import ResultsAccumulator
 from .messages import TaskMessage
+from .plasma_store import CustomPlasmaClient
 
 
 class DFProcessor(LoggerMixin):
@@ -37,6 +38,7 @@ class DFProcessor(LoggerMixin):
         self._stop_event = threading.Event()
         self._results_accumulator: ResultsAccumulator = None  # type: ignore
         self._running_workers: t.List[Worker] = []
+        self._plasma_client: CustomPlasmaClient = None  # type: ignore
         self.logger.info("DFProcessor initialized")
 
     def process_df(
@@ -64,8 +66,18 @@ class DFProcessor(LoggerMixin):
             if self._n_workers <= n_partitions  # type: ignore
             else n_partitions
         )
+        # TODO: Check OS - if windows, spawn regular workers, else Arrow based
         self._start_workers(n_workers_required)  # type: ignore
         self._start_results_accumulator(n_partitions)
+
+        # TODO: What if this 1.1 results in OutOfMemory?
+        # Initialize PlasmaStore, connect to it and push DF to share with
+        # other workers
+        self._plasma_client = CustomPlasmaClient(
+            parent=True, size=int(get_object_size(df) * 1.1)
+        )
+        df_id = self._plasma_client.plasma_client.put(df)
+        self.logger.info(f"Pushed DF to PlasmaStore. Its id: {df_id}")
 
         # Split dataframe into partitions
         partition_indices = [

@@ -7,6 +7,11 @@ from .utils import LoggerMixin
 from .exceptions import UserProvidedCallableError
 
 
+# TODO:
+#       1. Each worker gets indices, pulls DF from PlasmaStore, slices it,
+#          passes to the user provided function
+
+
 class Worker(multiprocessing.Process, LoggerMixin):
     def __init__(
         self,

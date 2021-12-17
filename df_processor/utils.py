@@ -26,3 +26,7 @@ class LoggerMixin:
     def logger(self) -> logging.Logger:
         name = ".".join([__name__, self.__class__.__name__])
         return logging.getLogger(name)
+
+
+def get_object_size(item: object) -> int:
+    return sys.getsizeof(item)

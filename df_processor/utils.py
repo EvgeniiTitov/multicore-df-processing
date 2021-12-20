@@ -30,6 +30,10 @@ class LoggerMixin:
         return logging.getLogger(name)
 
 
+def get_object_size(item: object) -> int:
+    return sys.getsizeof(item)
+
+
 def timer(func: t.Callable) -> t.Callable:
     @wraps(func)
     def wrapper(*args, **kwargs) -> t.Any:

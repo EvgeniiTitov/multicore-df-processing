@@ -8,9 +8,10 @@ import pandas as pd
 import numpy as np
 
 from .worker import Worker
-from .utils import round_robin_workers, LoggerMixin
+from .utils import round_robin_workers, LoggerMixin, get_object_size
 from .results_accumulator import ResultsAccumulator
 from .messages import TaskMessage
+from .plasma_store import CustomPlasmaClient
 
 
 class DFProcessor(LoggerMixin):
@@ -37,6 +38,7 @@ class DFProcessor(LoggerMixin):
         self._stop_event = threading.Event()
         self._results_accumulator: ResultsAccumulator = None  # type: ignore
         self._running_workers: t.List[Worker] = []
+        self._plasma_client: CustomPlasmaClient = None  # type: ignore
         self.logger.info("DFProcessor initialized")
 
     def process_df(
@@ -52,11 +54,25 @@ class DFProcessor(LoggerMixin):
         workers.
         Results are collected automatically and returned to the user
         """
+        # TODO: If this method is called multiple times, workers and Plasma
+        #       will get reinstantiated again - poor design
         if not callable(func):
             raise TypeError("func must be callable")
         rows = df.shape[0]
         if n_partitions < 1 or n_partitions > rows:
-            raise ValueError("n_partitions must be >= 1 and <= df.shape[0]")
+            raise ValueError("n_partitions must -> [1, df.shape[0]]")
+
+        # Initialize PlasmaStore, connect to it and push DF to share with
+        # other workers
+        # TODO: What if this 1.1 results in OutOfMemory?
+        socket_name = "/tmp/plasma"
+        self._plasma_client = CustomPlasmaClient(
+            parent=True,
+            socket_name=socket_name,
+            size=int(get_object_size(df) * 1.1),
+        )
+        df_plasma_id = self._plasma_client.plasma_client.put(df)
+        self.logger.info(f"Pushed DF to PlasmaStore. Its id: {df_plasma_id}")
 
         # Start workers and results accumulator
         n_workers_required = (
@@ -64,7 +80,8 @@ class DFProcessor(LoggerMixin):
             if self._n_workers <= n_partitions  # type: ignore
             else n_partitions
         )
-        self._start_workers(n_workers_required)  # type: ignore
+        # TODO: Check OS - if windows, spawn regular workers, else Arrow based
+        self._start_workers(n_workers_required, socket_name)  # type: ignore
         self._start_results_accumulator(n_partitions)
 
         # Split dataframe into partitions
@@ -85,7 +102,10 @@ class DFProcessor(LoggerMixin):
         while partition_indices:
             left, right = partition_indices.pop(0)
             worker_task = TaskMessage(
-                counter, func=func, df=df.iloc[left : right + 1, :]
+                counter,
+                func=func,
+                plasma_object_id=df_plasma_id,
+                indices=(left, right),
             )
             for worker in get_worker_round_robin:
                 enqueued = worker.enqueue_task_within_timeout(worker_task)
@@ -108,9 +128,14 @@ class DFProcessor(LoggerMixin):
         self.logger.info(f"Total of {len(results)} results received")
         return results
 
-    def _start_workers(self, n_workers: int) -> None:
+    def _start_workers(self, n_workers: int, plasma_socket_name: str) -> None:
         for i in range(n_workers):
-            worker = Worker(i, self._worker_queue_size, self._result_queue)
+            worker = Worker(
+                i,
+                self._worker_queue_size,
+                self._result_queue,
+                plasma_socket_name,
+            )
             worker.start()
             self._running_workers.append(worker)
         self.logger.info(f"{n_workers} workers started")

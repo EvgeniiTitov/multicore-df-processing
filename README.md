@@ -7,7 +7,7 @@ multiple instances of people doing it in different ways within one code base.
 ---
 ### TODO:
 
-Minor:
+- Find out why Arrow based implementation is slower lol
 
 - Worker.stop_worker() could block if queue is full
 
@@ -16,7 +16,3 @@ Minor:
 - Comment your code
 
 - Write tests
-
-Major:
-
-- Push provided DF to Apache Arrow's Object Store to avoid copying the DF to other processes
